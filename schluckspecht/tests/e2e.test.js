@@ -186,6 +186,136 @@ test.describe('Schluckspecht im Browser', { skip }, () => {
     await context.close();
   });
 
+  test('Team-Duell: Teams bilden, spielen, Ergebnis ändern, bis zum Sieg', async () => {
+    const { page, context, errors } = await newPage();
+    await page.click('label:has(input[name="mode"][value="duel"])');
+    assert.equal(await page.isVisible('#decks-panel'), false);
+    assert.equal(await page.isVisible('#target-group'), true);
+    assert.equal(await page.isVisible('#length-group'), false);
+
+    await addPlayers(page, ['Anna', 'Ben', 'Chris', 'Dana', 'Emil']);
+    const sizes = async () => [
+      await page.locator('#team-list-0 .chip').count(),
+      await page.locator('#team-list-1 .chip').count()
+    ];
+    assert.deepEqual(await sizes(), [3, 2], 'neue Personen kommen ins kleinere Team');
+
+    // Person wechseln lassen
+    await page.click('#team-list-0 .chip-switch >> nth=0');
+    assert.deepEqual(await sizes(), [2, 3]);
+
+    // Mischen ergibt ausgeglichene Teams
+    await page.click('#shuffle-btn');
+    const mixed = await sizes();
+    assert.equal(mixed[0] + mixed[1], 5);
+    assert.ok(Math.abs(mixed[0] - mixed[1]) === 1);
+
+    // Gleiche Teamnamen werden abgelehnt
+    await page.fill('#team-name-1', 'team rot');
+    assert.equal(await page.isDisabled('#start-btn'), true);
+    assert.match(await page.textContent('#start-hint'), /unterschiedliche Namen/);
+    await page.fill('#team-name-0', 'Löwen');
+    await page.fill('#team-name-1', 'Tiger');
+    assert.equal(await page.isDisabled('#start-btn'), false);
+
+    await page.click('label:has(input[name="target"][value="5"])');
+    await page.click('#start-btn');
+    await page.click('#age-dialog button[value="confirm"]');
+    await visible(page, '#screen-game');
+
+    assert.equal(await page.getAttribute('#screen-game', 'data-type'), 'duell');
+    assert.equal(await page.textContent('#score-name-0'), 'Team Löwen');
+    assert.equal(await page.textContent('#score-name-1'), 'Team Tiger');
+    assert.equal(await page.textContent('#win-0'), 'Team Löwen');
+    assert.match(await page.textContent('#card-note'), /^Einsatz: \d Schlucke? für jede Person im Verliererteam · Ziel: 5 Punkte$/);
+    assert.equal(await page.isVisible('#duel-actions'), true);
+    assert.equal(await page.isVisible('#back-btn'), false);
+
+    // Tippen auf die Karte ohne Entscheidung schaltet nicht weiter
+    const firstText = await page.textContent('#card-text');
+    await page.waitForTimeout(300);
+    await page.click('#card-stage');
+    assert.equal(await page.textContent('#card-text'), firstText);
+    assert.equal(await page.textContent('#card-counter'), 'Runde 1');
+
+    // Punkt für Löwen, dann zurücknehmen
+    await page.click('#win-0');
+    assert.equal(await page.getAttribute('#screen-game', 'data-type'), 'duellergebnis');
+    assert.match(await page.textContent('#card-text'), /^Punkt für Team Löwen! Team Tiger: Alle trinken \d Schlucke?\.$/);
+    assert.equal(await page.textContent('#score-0'), '1');
+    await page.click('#undo-btn');
+    assert.equal(await page.textContent('#score-0'), '0');
+    assert.equal(await page.textContent('#card-text'), firstText, 'dieselbe Karte ist wieder offen');
+
+    // Unentschieden
+    await page.click('#win-draw');
+    assert.match(await page.textContent('#card-text'), /^Unentschieden – kein Punkt\./);
+    assert.equal(await page.textContent('#score-0'), '0');
+    assert.equal(await page.textContent('#score-1'), '0');
+    await page.waitForTimeout(300);
+    await page.click('#card-stage');
+    assert.equal(await page.textContent('#card-counter'), 'Runde 2');
+
+    // Tiger gewinnt 5 Duelle
+    for (let i = 0; i < 5; i++) {
+      const text = await page.textContent('#card-text');
+      assert.ok(!/[{}]|undefined|NaN/.test(text), text);
+      await page.click('#win-1');
+      await page.keyboard.press('ArrowRight');
+    }
+    await visible(page, '#screen-end');
+    assert.equal(await page.textContent('#end-title'), 'Sieg für Team Tiger!');
+    assert.match(await page.textContent('#end-summary'), /^Endstand 0 : 5 nach 6 Duellen\. Team Löwen holt/);
+
+    // Nochmal: Punktestand beginnt bei 0
+    await page.click('#again-btn');
+    await visible(page, '#screen-game');
+    assert.equal(await page.textContent('#score-1'), '0');
+    assert.equal(await page.textContent('#card-counter'), 'Runde 1');
+
+    // Einstellungen bleiben erhalten
+    await page.click('#exit-btn');
+    await page.click('#exit-dialog button[value="confirm"]');
+    await visible(page, '#screen-home');
+    await page.reload();
+    assert.equal(await page.isChecked('input[name="mode"][value="duel"]'), true);
+    assert.equal(await page.inputValue('#team-name-0'), 'Löwen');
+    assert.deepEqual(await sizes(), mixed);
+
+    // Zurück zu Klassisch
+    await page.click('label:has(input[name="mode"][value="classic"])');
+    assert.equal(await page.isVisible('#decks-panel'), true);
+    assert.equal(await page.isVisible('#teams'), false);
+    assert.equal(await page.locator('#player-list .chip').count(), 5);
+
+    assert.deepEqual(errors, []);
+    await context.close();
+  });
+
+  test('Endlos-Duell: Beenden zeigt den Endstand, 1 gegen 1 funktioniert', async () => {
+    const { page, context, errors } = await newPage();
+    await page.click('label:has(input[name="mode"][value="duel"])');
+    await addPlayers(page, ['Ina', 'Jo']);
+    assert.deepEqual([await page.locator('#team-list-0 .chip').count(), await page.locator('#team-list-1 .chip').count()], [1, 1]);
+    await page.click('label:has(input[name="target"][value="0"])');
+    await page.click('#start-btn');
+    await page.click('#age-dialog button[value="confirm"]');
+    await visible(page, '#screen-game');
+    assert.doesNotMatch(await page.textContent('#card-note'), /Ziel/);
+    for (let i = 0; i < 30; i++) {
+      await page.click(i % 2 ? '#win-0' : '#win-1');
+      await page.keyboard.press('ArrowRight');
+    }
+    await page.click('#exit-btn');
+    assert.match(await page.textContent('#exit-text'), /Endstand/);
+    await page.click('#exit-dialog button[value="confirm"]');
+    await visible(page, '#screen-end');
+    assert.equal(await page.textContent('#end-title'), 'Unentschieden!');
+    assert.match(await page.textContent('#end-summary'), /^Endstand 15 : 15 nach 30 Duellen\./);
+    assert.deepEqual(errors, []);
+    await context.close();
+  });
+
   test('Altersabfrage abgelehnt: Spiel startet nicht', async () => {
     const { page, context, errors } = await newPage();
     await addPlayers(page, ['A', 'B']);
@@ -226,6 +356,7 @@ test.describe('Schluckspecht im Browser', { skip }, () => {
     await page.reload();
     assert.equal(await page.textContent('h1'), 'Schluckspecht');
     assert.equal(await page.locator('#deck-list .deck').count(), 4);
+    assert.equal(await page.locator('#win-draw').count(), 1);
     await context.setOffline(false);
     assert.deepEqual(errors, []);
     await context.close();

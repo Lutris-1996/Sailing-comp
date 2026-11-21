@@ -246,3 +246,146 @@ test('Positionen laufen lückenlos hoch', () => {
   });
   play(game).forEach((c, i) => assert.equal(c.position, i + 1));
 });
+
+/* ------------------------------------------------------------------ */
+/* Team-Duell                                                          */
+/* ------------------------------------------------------------------ */
+
+const DUEL = require('../js/duel-cards.js').map((c, i) => ({ ...c, id: 'duel-' + i }));
+
+function duel(teamA, teamB, opts = {}) {
+  return new Engine.DuelGame({
+    teams: [{ name: opts.nameA ?? 'Rot', players: teamA }, { name: opts.nameB ?? 'Blau', players: teamB }],
+    cards: DUEL,
+    target: opts.target ?? 5,
+    intensity: opts.intensity,
+    rng: opts.rng ?? seeded(1)
+  });
+}
+
+test('Teamnamen: „Team“-Präfix wird entfernt, leere Namen bekommen Standardnamen', () => {
+  assert.equal(Engine.teamDisplayName('  team   Löwen ', 0), 'Löwen');
+  assert.equal(Engine.teamDisplayName('Team', 1), 'Blau');
+  assert.equal(Engine.teamDisplayName('', 0), 'Rot');
+  assert.equal(Engine.teamDisplayName('Teamgeist', 0), 'Teamgeist');
+  assert.equal(Engine.teamLabel('Rot'), 'Team Rot');
+});
+
+test('Duell prüft Teams: zwei Teams, je mindestens eine Person, verschiedene Namen, keine doppelten Personen', () => {
+  assert.throws(() => duel(['A'], []), /mindestens eine Person/);
+  assert.throws(() => duel(['A', '  '], ['  ']), /mindestens eine Person/);
+  assert.throws(() => duel(['A'], ['B'], { nameA: 'Löwen', nameB: 'team löwen' }), /unterschiedliche Namen/);
+  assert.throws(() => duel(['Anna'], ['anna']), /mehrfach/);
+  assert.throws(() => new Engine.DuelGame({ teams: [{ players: ['A'] }], cards: DUEL }), /zwei Teams/);
+  assert.doesNotThrow(() => duel(['A'], ['B']));
+});
+
+test('Duell: Punkte, Unentschieden, Ende beim Spielziel und Sieger', () => {
+  const g = duel(['Anna', 'Ben'], ['Chris', 'Dana'], { target: 3 });
+  const plan = [0, -1, 1, 0, 1, 0];
+  const results = [];
+  let card;
+  while ((card = g.next())) {
+    assert.equal(card.type, 'duell');
+    results.push(g.decide(plan[results.length]));
+  }
+  assert.deepEqual(results.map((r) => r.scores), [[1, 0], [1, 0], [1, 1], [2, 1], [2, 2], [3, 2]]);
+  assert.deepEqual(results.map((r) => r.over), [false, false, false, false, false, true]);
+  assert.equal(g.isOver(), true);
+  assert.equal(g.leader(), 0);
+  assert.equal(g.next(), null);
+  assert.match(results[0].text, /^Punkt für Team Rot! Team Blau: Alle trinken \d Schlucke?\.$/);
+  assert.match(results[1].text, /^Unentschieden – kein Punkt\. Beide Teams trinken \d Schlucke?\.$/);
+});
+
+test('Duell: Ergebnis zurücknehmen stellt Punkte und Karte wieder her', () => {
+  const g = duel(['A'], ['B'], { target: 1 });
+  const card = g.next();
+  const r = g.decide(1);
+  assert.equal(r.over, true);
+  assert.equal(g.isOver(), true);
+  const again = g.undo();
+  assert.equal(again, card);
+  assert.deepEqual(g.scores, [0, 0]);
+  assert.equal(g.isOver(), false);
+  assert.equal(g.next(), card, 'offene Karte wird erneut geliefert');
+  assert.throws(() => g.decide(2), /Ungültiges Ergebnis/);
+  const r2 = g.decide(0);
+  assert.deepEqual(r2.scores, [1, 0]);
+  assert.throws(() => g.decide(0), /kein offenes Duell/);
+  assert.equal(new Engine.DuelGame({ teams: [{ players: ['A'] }, { players: ['B'] }], cards: DUEL }).undo(), null);
+});
+
+test('Duell: Namen stammen aus dem richtigen Team, Teams werden korrekt eingesetzt', () => {
+  const teamA = ['Anna', 'Ben', 'Cem'];
+  const teamB = ['Dana', 'Eli', 'Finn'];
+  for (let seed = 1; seed <= 30; seed++) {
+    const g = duel(teamA, teamB, { target: 0, rng: seeded(seed) });
+    for (let i = 0; i < 150; i++) {
+      const card = g.next();
+      assert.ok(!/[{}]|undefined|NaN/.test(card.text), card.text);
+      for (const p of card.parts) {
+        if (p.kind === 'name') assert.ok((p.team === 0 ? teamA : teamB).includes(p.text), `${p.text} in falschem Team`);
+        if (p.kind === 'team') assert.equal(p.text, p.team === 0 ? 'Team Rot' : 'Team Blau');
+      }
+      // Bei Paaren sind beide Namen einer Seite verschieden.
+      const byTeam = [0, 1].map((t) => card.parts.filter((p) => p.kind === 'name' && p.team === t).map((p) => p.text));
+      byTeam.forEach((names) => assert.equal(new Set(names).size, names.length));
+      g.decide(i % 3 - 1);
+    }
+  }
+});
+
+test('Duell: beide Teams sind gleich oft „Seite A“ (z. B. wer beginnt)', () => {
+  const g = duel(['A', 'B'], ['C', 'D'], { target: 0, rng: seeded(42) });
+  const begins = [0, 0];
+  for (let i = 0; i < 2000; i++) {
+    const card = g.next();
+    const first = card.parts.find((p) => p.kind === 'team' || p.kind === 'name');
+    if (first) begins[first.team] += 1;
+    g.decide(-1);
+  }
+  assert.ok(Math.abs(begins[0] - begins[1]) < 200, `ungleich: ${begins}`);
+});
+
+test('Duell: Karten mit Paaren oder Mindestgröße nur bei genug Personen pro Team', () => {
+  const small = duel(['A'], ['B', 'C', 'D'], { target: 0 });
+  assert.ok(small.pool.length >= 25, 'auch 1 gegen 3 hat genug Karten');
+  assert.ok(small.pool.every((c) => Engine.duelMinTeamSize(c) <= 1));
+  for (let i = 0; i < 300; i++) {
+    const card = small.next();
+    assert.ok(!card.parts.some((p) => p.kind === 'name' && card.parts.filter((q) => q.kind === 'name' && q.team === p.team).length > 1));
+    small.decide(0);
+  }
+  const big = duel(['A', 'B'], ['C', 'D'], { target: 0 });
+  assert.equal(big.pool.length, DUEL.length);
+});
+
+test('Duell: faire Verteilung innerhalb der Teams und kein Kartenwiederholer direkt hintereinander', () => {
+  const g = duel(['A', 'B', 'C'], ['D', 'E'], { target: 0, rng: seeded(9) });
+  const seen = {};
+  let prev = null;
+  for (let i = 0; i < 1000; i++) {
+    const card = g.next();
+    assert.notEqual(card.cardId, prev);
+    prev = card.cardId;
+    card.parts.filter((p) => p.kind === 'name').forEach((p) => { seen[p.text] = (seen[p.text] || 0) + 1; });
+    g.decide(1);
+  }
+  const a = ['A', 'B', 'C'].map((n) => seen[n] || 0);
+  const b = ['D', 'E'].map((n) => seen[n] || 0);
+  assert.ok(Math.max(...a) - Math.min(...a) <= 3, `Team A unfair: ${a}`);
+  assert.ok(Math.max(...b) - Math.min(...b) <= 3, `Team B unfair: ${b}`);
+});
+
+test('Duell: Einsatz entspricht der Intensität', () => {
+  for (const [key, { range }] of Object.entries(Engine.INTENSITY)) {
+    const g = duel(['A'], ['B'], { target: 0, intensity: key, rng: seeded(3) });
+    for (let i = 0; i < 100; i++) {
+      const card = g.next();
+      assert.ok(card.sips >= range[0] && card.sips <= range[1]);
+      assert.equal(card.stake, Engine.sipsText(card.sips));
+      g.decide(-1);
+    }
+  }
+});

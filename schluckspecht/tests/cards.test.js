@@ -86,3 +86,33 @@ test('Jede Karte lässt sich mit jeder passenden Personenzahl und jeder Schluckz
     }
   }
 });
+
+test('Duell-Karten sind gültig aufgebaut', () => {
+  const DUEL = require('../js/duel-cards.js');
+  assert.ok(DUEL.length >= 40, 'zu wenige Duell-Karten');
+  const texts = DUEL.map((c) => c.text);
+  assert.equal(new Set(texts).size, texts.length, 'doppelte Duell-Karten');
+  const oneVsOne = DUEL.filter((c) => Engine.duelMinTeamSize(c) <= 1);
+  assert.ok(oneVsOne.length >= 25, 'zu wenige Karten für Teams mit nur einer Person');
+  for (const card of DUEL) {
+    const where = card.text;
+    assert.equal(card.type, 'duell', where);
+    assert.ok(/[.!?]$/.test(card.text), `kein Satzende: ${where}`);
+    assert.ok(!/\s{2,}/.test(card.text), `doppelte Leerzeichen: ${where}`);
+    assert.ok(!/["']/.test(card.text), `gerade Anführungszeichen: ${where}`);
+    for (const m of card.text.matchAll(/\{([^}]*)\}/g)) {
+      assert.ok(/^(A|A2|B|B2|TA|TB)$/.test(m[1]), `unbekannter Platzhalter {${m[1]}}: ${where}`);
+    }
+    // Symmetrie: Was eine Seite braucht, braucht auch die andere.
+    for (const [a, b] of [['{A}', '{B}'], ['{A2}', '{B2}']]) {
+      assert.equal(card.text.includes(a), card.text.includes(b), `unsymmetrisch (${a}/${b}): ${where}`);
+    }
+    if (card.text.includes('{A2}')) assert.ok(card.text.includes('{A}'), where);
+    // Teamnamen nur als Subjekt oder nach „für“ – nie im Dativ/Akkusativ ohne Präposition.
+    for (const m of card.text.matchAll(/(\S+)\s+\{T[AB]\}/g)) {
+      const before = m[1].replace(/[^\p{L}]/gu, '');
+      assert.ok(!/^(dem|den|der|des|einem|einen)$/i.test(before), `Teamname mit Artikel: ${where}`);
+    }
+    assert.ok(!/\{[sS]\}/.test(card.text), `Einsatz steht unter der Karte, nicht im Text: ${where}`);
+  }
+});

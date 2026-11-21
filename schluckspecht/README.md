@@ -7,14 +7,25 @@ Die App funktioniert auf jedem Smartphone und Computer, braucht keinen App Store
 
 ## Funktionen
 
+- **Zwei Spielmodi**: *Klassisch* (alle gegen alle) und *Team-Duell* (zwei Teams sammeln Punkte)
 - **Mitspielende**: 2 bis 20 Namen, werden auf dem Gerät gespeichert
-- **4 Kartenstapel** mit 142 eigenen Karten: *Vorglühen*, *Eskalation*, *Ehrlich gesagt*, *Heiß & Wild*
+- **4 Kartenstapel** mit 247 eigenen Karten: *Vorglühen*, *Eskalation*, *Ehrlich gesagt*, *Heiß & Wild*
 - **Kartentypen**: Aufgabe, Spiel, Abstimmung und **Regeln**, die über mehrere Karten gelten und automatisch mit einer „Regel vorbei“-Karte enden (höchstens zwei gleichzeitig, jederzeit über „Regeln aktiv“ einsehbar)
 - **Faire Auswahl**: Wer seltener dran war, kommt eher dran; pro Karte immer verschiedene Personen
 - **Einstellungen**: Schlucke pro Karte (Sanft, Normal, Kräftig), Spiellänge (30, 50, endlos)
 - Zurückblättern, Tastatursteuerung (← →, Leertaste, Esc), Bildschirm bleibt während des Spiels an
 - Abstimmungen erscheinen erst ab 3 Personen, Karten mit drei Namen erst ab 3 Personen
 - Korrekte Grammatik („1 Schluck“ und „2 Schlucke“)
+
+## Team-Duell
+
+- Personen werden automatisch dem kleineren Team zugeteilt; per ⇄ wechselt jemand das Team, „Teams zufällig mischen“ teilt neu auf.
+- Teamnamen sind frei wählbar (Standard: *Rot* und *Blau*).
+- 49 eigene Duell-Karten: eins gegen eins, Team gegen Team, Ratespiele und Paar-Duelle. Wer beginnt, wird pro Karte fair ausgelost.
+- Nach jedem Duell tippt ihr, wer gewonnen hat (oder *Unentschieden*). Das Verliererteam trinkt den angezeigten Einsatz; bei Unentschieden trinken beide Teams.
+- Falsch getippt? „Ergebnis ändern“ nimmt die Wertung zurück.
+- Spielziel: 5 Punkte, 10 Punkte oder endlos (dann zeigt „Beenden“ den Endstand).
+- Karten, die zwei Personen pro Team oder Teamarbeit brauchen, erscheinen nur, wenn jedes Team groß genug ist.
 
 ## Starten
 
@@ -45,7 +56,8 @@ Ist Playwright nicht installiert, werden sie übersprungen.
 | --- | --- |
 | `index.html`, `styles.css` | Oberfläche |
 | `js/engine.js` | Spiellogik ohne DOM (Ziehen, Regeln, Personenauswahl, Platzhalter) |
-| `js/cards.js` | Alle Karten |
+| `js/cards.js` | Karten der vier Stapel (klassischer Modus) |
+| `js/duel-cards.js` | Karten für das Team-Duell |
 | `js/app.js` | Verbindung von Oberfläche und Spiellogik, Speicherung |
 | `sw.js`, `manifest.webmanifest`, `icons/` | Installierbarkeit und Offline-Modus |
 
@@ -61,4 +73,11 @@ R('{1} darf nur flüstern.', '{1} darf wieder normal reden.'),            // Reg
 ```
 
 Platzhalter: `{1}`, `{2}`, `{3}` für verschiedene Personen, `{s}` für die Schlucke (mit Wort), `{S}` für die doppelte Menge.
+
+Duell-Karten in `js/duel-cards.js` nutzen `{A}`/`{B}` (je eine Person pro Team), `{A2}`/`{B2}` (zweite Person) und `{TA}`/`{TB}` (wird zu „Team Rot“ usw.):
+
+```js
+D('{A} gegen {B}: Wer zuerst fünf Gemüsesorten nennt, gewinnt.'),
+D('Kategorie-Duell: Flüsse. {TA} beginnt, dann geht es abwechselnd weiter.' + LAST),
+```
 `npm test` prüft danach automatisch, ob jede Karte gültig ist.

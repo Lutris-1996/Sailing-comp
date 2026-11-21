@@ -1,13 +1,14 @@
 /* Schluckspecht – Service Worker: macht das Spiel offline spielbar. */
 'use strict';
 
-var CACHE = 'schluckspecht-v1';
+var CACHE = 'schluckspecht-v2';
 var ASSETS = [
   './',
   './index.html',
   './styles.css',
   './js/engine.js',
   './js/cards.js',
+  './js/duel-cards.js',
   './js/app.js',
   './manifest.webmanifest',
   './icons/icon.svg',

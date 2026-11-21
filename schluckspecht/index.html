@@ -29,6 +29,17 @@
       </div>
     </header>
 
+    <section class="panel" aria-labelledby="h-mode">
+      <h2 id="h-mode">Spielmodus</h2>
+      <fieldset class="segmented" id="mode-group">
+        <legend class="sr-only">Spielmodus wählen</legend>
+        <div class="seg-options seg-2">
+          <label><input type="radio" name="mode" value="classic"><span>Klassisch<small>Alle gegen alle</small></span></label>
+          <label><input type="radio" name="mode" value="duel"><span>Team-Duell<small>Zwei Teams sammeln Punkte</small></span></label>
+        </div>
+      </fieldset>
+    </section>
+
     <section class="panel" aria-labelledby="h-players">
       <h2 id="h-players">Mitspielende <span id="player-count" class="count"></span></h2>
       <form id="player-form" class="player-form" autocomplete="off" novalidate>
@@ -38,10 +49,29 @@
       </form>
       <p id="player-error" class="error" role="alert" hidden></p>
       <ul id="player-list" class="chips" aria-label="Liste der Mitspielenden"></ul>
+      <div id="teams" class="teams" hidden>
+        <div class="team-box team-0">
+          <div class="team-title">
+            <span class="team-dot" aria-hidden="true"></span>
+            <label for="team-name-0">Team</label>
+            <input id="team-name-0" class="team-name" type="text" maxlength="20" placeholder="Rot" autocomplete="off" spellcheck="false">
+          </div>
+          <ul id="team-list-0" class="chips team-list" aria-label="Personen in Team 1"></ul>
+        </div>
+        <div class="team-box team-1">
+          <div class="team-title">
+            <span class="team-dot" aria-hidden="true"></span>
+            <label for="team-name-1">Team</label>
+            <input id="team-name-1" class="team-name" type="text" maxlength="20" placeholder="Blau" autocomplete="off" spellcheck="false">
+          </div>
+          <ul id="team-list-1" class="chips team-list" aria-label="Personen in Team 2"></ul>
+        </div>
+        <button id="shuffle-btn" type="button" class="btn btn-secondary btn-block btn-small">Teams zufällig mischen</button>
+      </div>
       <p id="player-empty" class="muted">Noch niemand dabei. Füge mindestens zwei Namen hinzu.</p>
     </section>
 
-    <section class="panel" aria-labelledby="h-decks">
+    <section id="decks-panel" class="panel" aria-labelledby="h-decks">
       <h2 id="h-decks">Kartenstapel</h2>
       <div id="deck-list" class="decks"></div>
     </section>
@@ -64,6 +94,14 @@
           <label><input type="radio" name="length" value="0"><span>Endlos<small>bis ihr aufhört</small></span></label>
         </div>
       </fieldset>
+      <fieldset class="segmented" id="target-group" hidden>
+        <legend>Spielziel</legend>
+        <div class="seg-options">
+          <label><input type="radio" name="target" value="5"><span>Bis 5<small>Punkte</small></span></label>
+          <label><input type="radio" name="target" value="10"><span>Bis 10<small>Punkte</small></span></label>
+          <label><input type="radio" name="target" value="0"><span>Endlos<small>bis ihr aufhört</small></span></label>
+        </div>
+      </fieldset>
     </section>
 
     <p class="disclaimer">
@@ -84,15 +122,34 @@
         <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>
       </button>
       <span id="card-label" class="card-label"></span>
-      <span id="card-counter" class="counter" aria-label="Kartennummer"></span>
+      <span id="card-counter" class="counter"></span>
+    </div>
+
+    <div id="scoreboard" class="scoreboard" hidden aria-live="polite">
+      <span class="score-side team-0"><span id="score-name-0" class="score-name"></span><strong id="score-0" class="score-num">0</strong></span>
+      <span class="score-sep" aria-hidden="true">:</span>
+      <span class="score-side team-1"><strong id="score-1" class="score-num">0</strong><span id="score-name-1" class="score-name"></span></span>
     </div>
 
     <div id="card-stage" class="card-stage" role="button" tabindex="0" aria-label="Nächste Karte">
-      <p id="card-text" class="card-text" aria-live="polite"></p>
+      <div class="card-body">
+        <p id="card-text" class="card-text" aria-live="polite"></p>
+        <p id="card-note" class="card-note" hidden></p>
+      </div>
     </div>
 
-    <div class="game-bottom">
+    <div id="duel-actions" class="duel-actions" hidden>
+      <p id="duel-question" class="duel-question">Wer hat gewonnen?</p>
+      <div class="duel-buttons">
+        <button id="win-0" type="button" class="duel-btn team-0"></button>
+        <button id="win-draw" type="button" class="duel-btn draw">Unentschieden</button>
+        <button id="win-1" type="button" class="duel-btn team-1"></button>
+      </div>
+    </div>
+
+    <div id="game-bottom" class="game-bottom">
       <button id="back-btn" type="button" class="pill-btn">‹ Zurück</button>
+      <button id="undo-btn" type="button" class="pill-btn" hidden>‹ Ergebnis ändern</button>
       <button id="rules-btn" type="button" class="pill-btn" hidden></button>
       <span class="tap-hint" aria-hidden="true">Tippen für weiter</span>
     </div>
@@ -101,8 +158,8 @@
   <!-- Endbildschirm -->
   <section id="screen-end" class="screen end" hidden>
     <div class="end-inner">
-      <div class="end-emoji" aria-hidden="true">🎉</div>
-      <h2>Das war’s!</h2>
+      <div id="end-emoji" class="end-emoji" aria-hidden="true">🎉</div>
+      <h2 id="end-title">Das war’s!</h2>
       <p id="end-summary" class="end-summary"></p>
       <button id="again-btn" type="button" class="btn btn-primary btn-block">Nochmal spielen</button>
       <button id="menu-btn" type="button" class="btn btn-secondary btn-block">Zum Menü</button>
@@ -113,7 +170,7 @@
   <dialog id="exit-dialog" class="sheet" aria-labelledby="exit-title">
     <form method="dialog">
       <h2 id="exit-title">Spiel beenden?</h2>
-      <p>Der aktuelle Spielstand geht dabei verloren.</p>
+      <p id="exit-text">Der aktuelle Spielstand geht dabei verloren.</p>
       <div class="dialog-actions">
         <button value="cancel" class="btn btn-secondary">Weiterspielen</button>
         <button value="confirm" class="btn btn-danger">Beenden</button>
@@ -144,6 +201,7 @@
 
   <script src="js/engine.js"></script>
   <script src="js/cards.js"></script>
+  <script src="js/duel-cards.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
