@@ -412,12 +412,16 @@
 
   function requestWakeLock() {
     if (!('wakeLock' in navigator) || wakeLock) return;
-    navigator.wakeLock.request('screen').then(function (lock) {
-      wakeLock = lock;
-      lock.addEventListener('release', function () {
-        if (wakeLock === lock) wakeLock = null;
-      });
-    }).catch(function () { /* nicht erlaubt – egal */ });
+    try {
+      navigator.wakeLock.request('screen').then(function (lock) {
+        wakeLock = lock;
+        lock.addEventListener('release', function () {
+          if (wakeLock === lock) wakeLock = null;
+        });
+      }).catch(function () { /* nicht erlaubt – egal */ });
+    } catch (e) {
+      /* In manchen eingebetteten Ansichten nicht verfügbar. */
+    }
   }
 
   function releaseWakeLock() {
@@ -481,7 +485,11 @@
 
   if ('serviceWorker' in navigator && /^https?:$/.test(window.location.protocol)) {
     window.addEventListener('load', function () {
-      navigator.serviceWorker.register('sw.js').catch(function () { /* offline-Modus optional */ });
+      try {
+        navigator.serviceWorker.register('sw.js').catch(function () { /* offline-Modus optional */ });
+      } catch (e) {
+        /* z. B. in einer abgeschotteten Einbettung – das Spiel läuft auch ohne. */
+      }
     });
   }
 })();
