@@ -1,0 +1,149 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#17131f">
+  <meta name="color-scheme" content="dark">
+  <meta name="description" content="Schluckspecht – das Partyspiel für eure Runde.">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Schluckspecht">
+  <title>Schluckspecht</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <noscript><p class="noscript">Bitte aktiviere JavaScript, um Schluckspecht zu spielen.</p></noscript>
+
+  <!-- Startbildschirm -->
+  <main id="screen-home" class="screen home">
+    <header class="brand">
+      <img src="icons/icon.svg" alt="" class="brand-logo" width="56" height="56">
+      <div>
+        <h1>Schluckspecht</h1>
+        <p class="tagline">Das Partyspiel für eure Runde</p>
+      </div>
+    </header>
+
+    <section class="panel" aria-labelledby="h-players">
+      <h2 id="h-players">Mitspielende <span id="player-count" class="count"></span></h2>
+      <form id="player-form" class="player-form" autocomplete="off" novalidate>
+        <input id="player-input" type="text" maxlength="20" placeholder="Name eingeben"
+               aria-label="Name eingeben" enterkeyhint="done" autocapitalize="words" spellcheck="false">
+        <button type="submit" class="btn btn-add">Hinzufügen</button>
+      </form>
+      <p id="player-error" class="error" role="alert" hidden></p>
+      <ul id="player-list" class="chips" aria-label="Liste der Mitspielenden"></ul>
+      <p id="player-empty" class="muted">Noch niemand dabei. Füge mindestens zwei Namen hinzu.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="h-decks">
+      <h2 id="h-decks">Kartenstapel</h2>
+      <div id="deck-list" class="decks"></div>
+    </section>
+
+    <section class="panel" aria-labelledby="h-settings">
+      <h2 id="h-settings">Einstellungen</h2>
+      <fieldset class="segmented" id="intensity-group">
+        <legend>Schlucke pro Karte</legend>
+        <div class="seg-options">
+          <label><input type="radio" name="intensity" value="sanft"><span>Sanft<small>1–2</small></span></label>
+          <label><input type="radio" name="intensity" value="normal"><span>Normal<small>1–3</small></span></label>
+          <label><input type="radio" name="intensity" value="kraeftig"><span>Kräftig<small>2–4</small></span></label>
+        </div>
+      </fieldset>
+      <fieldset class="segmented" id="length-group">
+        <legend>Spiellänge</legend>
+        <div class="seg-options">
+          <label><input type="radio" name="length" value="30"><span>Kurz<small>30 Karten</small></span></label>
+          <label><input type="radio" name="length" value="50"><span>Lang<small>50 Karten</small></span></label>
+          <label><input type="radio" name="length" value="0"><span>Endlos<small>bis ihr aufhört</small></span></label>
+        </div>
+      </fieldset>
+    </section>
+
+    <p class="disclaimer">
+      Nur für Erwachsene ab 18 Jahren. Trinkt verantwortungsvoll – jeder Schluck darf auch Wasser
+      oder Saft sein, und niemand muss etwas tun, das sich nicht gut anfühlt.
+    </p>
+
+    <div class="start-bar">
+      <p id="start-hint" class="start-hint" aria-live="polite"></p>
+      <button id="start-btn" type="button" class="btn btn-primary btn-block">Los geht’s</button>
+    </div>
+  </main>
+
+  <!-- Spielbildschirm -->
+  <section id="screen-game" class="screen game" data-type="aufgabe" hidden>
+    <div class="game-top">
+      <button id="exit-btn" type="button" class="icon-btn" aria-label="Spiel beenden">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>
+      </button>
+      <span id="card-label" class="card-label"></span>
+      <span id="card-counter" class="counter" aria-label="Kartennummer"></span>
+    </div>
+
+    <div id="card-stage" class="card-stage" role="button" tabindex="0" aria-label="Nächste Karte">
+      <p id="card-text" class="card-text" aria-live="polite"></p>
+    </div>
+
+    <div class="game-bottom">
+      <button id="back-btn" type="button" class="pill-btn">‹ Zurück</button>
+      <button id="rules-btn" type="button" class="pill-btn" hidden></button>
+      <span class="tap-hint" aria-hidden="true">Tippen für weiter</span>
+    </div>
+  </section>
+
+  <!-- Endbildschirm -->
+  <section id="screen-end" class="screen end" hidden>
+    <div class="end-inner">
+      <div class="end-emoji" aria-hidden="true">🎉</div>
+      <h2>Das war’s!</h2>
+      <p id="end-summary" class="end-summary"></p>
+      <button id="again-btn" type="button" class="btn btn-primary btn-block">Nochmal spielen</button>
+      <button id="menu-btn" type="button" class="btn btn-secondary btn-block">Zum Menü</button>
+    </div>
+  </section>
+
+  <!-- Dialoge -->
+  <dialog id="exit-dialog" class="sheet" aria-labelledby="exit-title">
+    <form method="dialog">
+      <h2 id="exit-title">Spiel beenden?</h2>
+      <p>Der aktuelle Spielstand geht dabei verloren.</p>
+      <div class="dialog-actions">
+        <button value="cancel" class="btn btn-secondary">Weiterspielen</button>
+        <button value="confirm" class="btn btn-danger">Beenden</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="rules-dialog" class="sheet" aria-labelledby="rules-title">
+    <form method="dialog">
+      <h2 id="rules-title">Aktive Regeln</h2>
+      <ul id="rules-list" class="rules-list"></ul>
+      <div class="dialog-actions">
+        <button value="close" class="btn btn-primary">Schließen</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="age-dialog" class="sheet" aria-labelledby="age-title">
+    <form method="dialog">
+      <h2 id="age-title">Kurz vorab</h2>
+      <p>Schluckspecht ist ein Trinkspiel für Erwachsene. Sind alle in eurer Runde mindestens 18 Jahre alt?</p>
+      <div class="dialog-actions">
+        <button value="cancel" class="btn btn-secondary">Nein</button>
+        <button value="confirm" class="btn btn-primary">Ja, alle sind 18+</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="js/engine.js"></script>
+  <script src="js/cards.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

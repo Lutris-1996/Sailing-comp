@@ -1,0 +1,15 @@
+{
+  "name": "schluckspecht",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Schluckspecht – ein Partyspiel als installierbare Web-App (PWA).",
+  "scripts": {
+    "start": "node tests/server.js",
+    "test": "node --test tests/engine.test.js tests/cards.test.js",
+    "test:e2e": "node --test tests/e2e.test.js",
+    "test:all": "node --test tests/engine.test.js tests/cards.test.js tests/e2e.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
